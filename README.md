@@ -5,7 +5,7 @@ For use with [multilayer-async-cache-builder](https://github.com/ken107/multilay
 
 ## Install
 ```
-npm i simple-cache
+npm i ssh://github.com/ken107/simple-cache
 ```
 
 ## Example

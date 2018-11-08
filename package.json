@@ -2,7 +2,7 @@
   "name": "simple-cache",
   "version": "1.0.0",
   "description": "Memory, disk, and S3 cache implementations with simple TTL",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "test": "jest"
