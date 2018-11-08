@@ -1,5 +1,7 @@
 # simple-cache
-Memory, disk, and S3 cache implementations with simple TTL (for use with [multilayer-async-cache-builder](https://github.com/ken107/multilayer-async-cache-builder))
+Memory, disk, and S3 cache implementations with simple TTL.
+
+For use with [multilayer-async-cache-builder](https://github.com/ken107/multilayer-async-cache-builder)
 
 ## Install
 ```
@@ -9,10 +11,11 @@ npm i simple-cache
 ## Example
 Create a 3-layer cache:
 
-Layer | Type | Info
-1 | Memory | ttl: 60 seconds, cleanupInterval: 60 seconds
-2 | Disk | ttl: 1 hour, cleanupInterval: 15 minutes
-3 | S3 | ttl: (use bucket lifecycle rules)
+Layer | Type   | Info
+------|--------|---------------------------------------------
+1     | Memory | ttl: 60 seconds, cleanupInterval: 60 seconds
+2     | Disk   | ttl: 1 hour, cleanupInterval: 15 minutes
+3     | S3     | ttl: (use bucket lifecycle rules)
 
 ```typescript
 import { cached } from "multilayer-async-cache-builder"

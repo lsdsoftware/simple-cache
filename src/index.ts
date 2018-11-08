@@ -49,9 +49,8 @@ export class DiskCache implements Cache<CacheEntry> {
     this.lastCleanup = Date.now();
   }
   async get(key: CacheKey): Promise<CacheEntry> {
-    const keyStr = key.toString();
     try {
-      const file = path.join(this.cacheFolder, keyStr);
+      const file = path.join(this.cacheFolder, key.toString());
       const buf = await promisify(fs.readFile)(file);
       const index = buf.indexOf("\n");
       return {
@@ -64,8 +63,7 @@ export class DiskCache implements Cache<CacheEntry> {
     }
   }
   async set(key: CacheKey, value: CacheEntry) {
-    const keyStr = key.toString();
-    const file = path.join(this.cacheFolder, keyStr);
+    const file = path.join(this.cacheFolder, key.toString());
     const fd = await promisify(fs.open)(file, "w");
     try {
       await promisify(fs.write)(fd, JSON.stringify(value.metadata) + "\n");
@@ -88,12 +86,27 @@ export class DiskCache implements Cache<CacheEntry> {
 }
 
 
-export class S3Cache<T> implements Cache<T> {
-  constructor(private readonly s3: S3) {
+export class S3Cache implements Cache<CacheEntry> {
+  constructor(private readonly s3: S3, private readonly bucket: string) {
   }
-  get(key: CacheKey): Promise<T> {
-    return null;
+  async get(key: CacheKey): Promise<CacheEntry> {
+    const req = {
+      Bucket: this.bucket,
+      Key: key.toString(),
+    };
+    const res = await this.s3.getObject(req).promise();
+    return {
+      data: <Buffer>res.Body,
+      metadata: res.Metadata
+    };
   }
-  set(key: CacheKey, value: T) {
+  async set(key: CacheKey, value: CacheEntry) {
+    const req = {
+      Bucket: this.bucket,
+      Key: key.toString(),
+      Body: value.data,
+      Metadata: value.metadata,
+    };
+    await this.s3.putObject(req).promise();
   }
 }
