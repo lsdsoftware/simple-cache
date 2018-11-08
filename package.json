@@ -1,0 +1,25 @@
+{
+  "name": "simple-cache",
+  "version": "1.0.0",
+  "description": "Memory, disk, and S3 cache implementations with simple TTL",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ken107/simple-cache.git"
+  },
+  "author": "Hai Phan <hai.phan@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ken107/simple-cache/issues"
+  },
+  "homepage": "https://github.com/ken107/simple-cache#readme",
+  "devDependencies": {
+    "@types/node": "^10.12.3",
+    "aws-sdk": "^2.351.0",
+    "multilayer-async-cache-builder": "^1.0.2"
+  }
+}
