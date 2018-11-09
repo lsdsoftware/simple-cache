@@ -15,12 +15,17 @@ class MemCache {
         const item = this.mem[key.toString()];
         if (item) {
             item.expire = Date.now() + this.ttl;
-            return item.data;
+            return {
+                data: item.data,
+                metadata: item.metadata,
+                fromCache: "mem"
+            };
         }
     }
     set(key, value) {
         this.mem[key.toString()] = {
-            data: value,
+            data: value.data,
+            metadata: value.metadata,
             expire: Date.now() + this.ttl
         };
         this.cleanup();
@@ -51,7 +56,8 @@ class DiskCache {
             const index = buf.indexOf("\n");
             return {
                 data: buf.slice(index + 1),
-                metadata: JSON.parse(buf.slice(0, index).toString())
+                metadata: JSON.parse(buf.slice(0, index).toString()),
+                fromCache: "disk"
             };
         }
         catch (err) {
@@ -96,7 +102,8 @@ class S3Cache {
             const res = await this.s3.getObject(req).promise();
             return {
                 data: res.Body,
-                metadata: res.Metadata
+                metadata: res.Metadata,
+                fromCache: "s3"
             };
         }
         catch (err) {

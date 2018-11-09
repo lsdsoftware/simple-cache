@@ -8,11 +8,12 @@ import { promisify } from "util";
 export interface CacheEntry {
   data: Buffer;
   metadata: {[key: string]: string};
+  fromCache: string;
 }
 
 
 export class MemCache implements Cache<CacheEntry> {
-  private readonly mem: {[key: string]: {data: CacheEntry, expire: number}};
+  private readonly mem: {[key: string]: {data: Buffer, metadata: {[key: string]: string}, expire: number}};
   private lastCleanup: number;
   constructor(private readonly ttl: number, private readonly cleanupInterval: number) {
     this.mem = {};
@@ -22,12 +23,17 @@ export class MemCache implements Cache<CacheEntry> {
     const item = this.mem[key.toString()];
     if (item) {
       item.expire = Date.now() + this.ttl;
-      return item.data;
+      return {
+        data: item.data,
+        metadata: item.metadata,
+        fromCache: "mem"
+      }
     }
   }
   set(key: CacheKey, value: CacheEntry) {
     this.mem[key.toString()] = {
-      data: value,
+      data: value.data,
+      metadata: value.metadata,
       expire: Date.now() + this.ttl
     };
     this.cleanup();
@@ -55,7 +61,8 @@ export class DiskCache implements Cache<CacheEntry> {
       const index = buf.indexOf("\n");
       return {
         data: buf.slice(index +1),
-        metadata: JSON.parse(buf.slice(0, index).toString())
+        metadata: JSON.parse(buf.slice(0, index).toString()),
+        fromCache: "disk"
       }
     }
     catch (err) {
@@ -98,7 +105,8 @@ export class S3Cache implements Cache<CacheEntry> {
       const res = await this.s3.getObject(req).promise();
       return {
         data: <Buffer>res.Body,
-        metadata: res.Metadata
+        metadata: res.Metadata,
+        fromCache: "s3"
       };
     }
     catch (err) {

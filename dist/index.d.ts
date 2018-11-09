@@ -6,6 +6,7 @@ export interface CacheEntry {
     metadata: {
         [key: string]: string;
     };
+    fromCache: string;
 }
 export declare class MemCache implements Cache<CacheEntry> {
     private readonly ttl;
