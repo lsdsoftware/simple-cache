@@ -92,11 +92,19 @@ class S3Cache {
             Bucket: this.bucket,
             Key: key.toString(),
         };
-        const res = await this.s3.getObject(req).promise();
-        return {
-            data: res.Body,
-            metadata: res.Metadata
-        };
+        try {
+            const res = await this.s3.getObject(req).promise();
+            return {
+                data: res.Body,
+                metadata: res.Metadata
+            };
+        }
+        catch (err) {
+            if (err.code == "NoSuchKey")
+                return undefined;
+            else
+                throw err;
+        }
     }
     async set(key, value) {
         const req = {

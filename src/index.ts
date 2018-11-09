@@ -94,11 +94,17 @@ export class S3Cache implements Cache<CacheEntry> {
       Bucket: this.bucket,
       Key: key.toString(),
     };
-    const res = await this.s3.getObject(req).promise();
-    return {
-      data: <Buffer>res.Body,
-      metadata: res.Metadata
-    };
+    try {
+      const res = await this.s3.getObject(req).promise();
+      return {
+        data: <Buffer>res.Body,
+        metadata: res.Metadata
+      };
+    }
+    catch (err) {
+      if (err.code == "NoSuchKey") return undefined;
+      else throw err;
+    }
   }
   async set(key: CacheKey, value: CacheEntry) {
     const req = {
