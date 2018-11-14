@@ -33,3 +33,5 @@ const getItem = cached(fetchItem, [
 //use
 getItem("item-id").then(useItem);
 ```
+
+Note: In this simple implementation, an item is considered valid as long as it exists in the cache, even after its TTL has expired (and is waiting to be purged).  TTL is calculated from the item's last _access_ time.
