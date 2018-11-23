@@ -14,7 +14,6 @@ class MemCache {
     get(key) {
         const item = this.mem[key.toString()];
         if (item) {
-            item.expire = Date.now() + this.ttl;
             return {
                 data: item.data,
                 metadata: item.metadata,
@@ -80,7 +79,7 @@ class DiskCache {
         const now = Date.now();
         if (now - this.lastCleanup > this.cleanupInterval) {
             this.lastCleanup = now;
-            child_process_1.exec(`find ${this.cacheFolder} -type f -not -newerat "${this.ttl / 1000} seconds ago" -delete`, (err, stdout, stderr) => {
+            child_process_1.exec(`find ${this.cacheFolder} -type f -not -newermt "${this.ttl / 1000} seconds ago" -delete`, (err, stdout, stderr) => {
                 if (err || stderr)
                     console.error(err || stderr);
             });

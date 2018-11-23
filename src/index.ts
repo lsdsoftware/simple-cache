@@ -22,7 +22,6 @@ export class MemCache implements Cache<CacheEntry> {
   get(key: CacheKey): CacheEntry {
     const item = this.mem[key.toString()];
     if (item) {
-      item.expire = Date.now() + this.ttl;
       return {
         data: item.data,
         metadata: item.metadata,
@@ -85,7 +84,7 @@ export class DiskCache implements Cache<CacheEntry> {
     const now = Date.now();
     if (now-this.lastCleanup > this.cleanupInterval) {
       this.lastCleanup = now;
-      exec(`find ${this.cacheFolder} -type f -not -newerat "${this.ttl/1000} seconds ago" -delete`, (err, stdout, stderr) => {
+      exec(`find ${this.cacheFolder} -type f -not -newermt "${this.ttl/1000} seconds ago" -delete`, (err, stdout, stderr) => {
         if (err || stderr) console.error(err || stderr);
       })
     }

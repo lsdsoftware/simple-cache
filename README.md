@@ -18,20 +18,20 @@ Layer | Type   | Info
 3     | S3     | ttl: (use bucket lifecycle rules)
 
 ```typescript
-import { cached } from "multilayer-async-cache-builder"
+import { Fetch } from "multilayer-async-cache-builder"
 import { MemCache, DiskCache, S3Cache } from "simple-cache"
 
 const s3: AWS.S3;
 const fetchItem: (id: string) => Promise<{data: Buffer, metadata: any}>;
 
-const getItem = cached(fetchItem, [
-  new MemCache(ms("1 minute"), ms("1 minute")),
-  new DiskCache("path/to/cache/folder", ms("1 hour"), ms("15 minutes")),
-  new S3Cache(s3, "my-bucket")
-])
+const getItem = new Fetch(fetchItem)
+  .cache(new S3Cache(s3, "my-bucket"))
+  .cache(new DiskCache("path/to/cache/folder", ms("1 hour"), ms("15 minutes")))
+  .cache(new MemCache(ms("1 minute"), ms("1 minute")))
+  .dedupe()
 
 //use
 getItem("item-id").then(useItem);
 ```
 
-Note: In this simple implementation, an item is considered valid as long as it exists in the cache, even after its TTL has expired (and is waiting to be purged).  TTL is calculated from the item's last _access_ time.
+Note: In this simple implementation, an item is considered valid as long as it exists in the cache, even after its TTL has expired (and is waiting to be purged).  TTL is calculated from the item's creation time, not access time.

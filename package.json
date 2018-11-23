@@ -18,8 +18,8 @@
   },
   "homepage": "https://github.com/ken107/simple-cache#readme",
   "devDependencies": {
-    "@types/node": "^10.12.3",
-    "aws-sdk": "^2.351.0",
-    "multilayer-async-cache-builder": "^1.0.2"
+    "@types/node": "^10.12.10",
+    "aws-sdk": "^2.361.0",
+    "multilayer-async-cache-builder": "^1.0.3"
   }
 }
