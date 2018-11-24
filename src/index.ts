@@ -93,12 +93,12 @@ export class DiskCache implements Cache<CacheEntry> {
 
 
 export class S3Cache implements Cache<CacheEntry> {
-  constructor(private readonly s3: S3, private readonly bucket: string) {
+  constructor(private readonly s3: S3, private readonly bucket: string, private readonly prefix: string = "") {
   }
   async get(key: CacheKey): Promise<CacheEntry> {
     const req = {
       Bucket: this.bucket,
-      Key: key.toString(),
+      Key: this.prefix + key.toString(),
     };
     try {
       const res = await this.s3.getObject(req).promise();
@@ -116,7 +116,7 @@ export class S3Cache implements Cache<CacheEntry> {
   async set(key: CacheKey, value: CacheEntry) {
     const req = {
       Bucket: this.bucket,
-      Key: key.toString(),
+      Key: this.prefix + key.toString(),
       Body: value.data,
       Metadata: value.metadata,
     };

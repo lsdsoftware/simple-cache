@@ -31,7 +31,8 @@ export declare class DiskCache implements Cache<CacheEntry> {
 export declare class S3Cache implements Cache<CacheEntry> {
     private readonly s3;
     private readonly bucket;
-    constructor(s3: S3, bucket: string);
+    private readonly prefix;
+    constructor(s3: S3, bucket: string, prefix?: string);
     get(key: CacheKey): Promise<CacheEntry>;
     set(key: CacheKey, value: CacheEntry): Promise<void>;
 }

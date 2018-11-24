@@ -88,14 +88,15 @@ class DiskCache {
 }
 exports.DiskCache = DiskCache;
 class S3Cache {
-    constructor(s3, bucket) {
+    constructor(s3, bucket, prefix = "") {
         this.s3 = s3;
         this.bucket = bucket;
+        this.prefix = prefix;
     }
     async get(key) {
         const req = {
             Bucket: this.bucket,
-            Key: key.toString(),
+            Key: this.prefix + key.toString(),
         };
         try {
             const res = await this.s3.getObject(req).promise();
@@ -115,7 +116,7 @@ class S3Cache {
     async set(key, value) {
         const req = {
             Bucket: this.bucket,
-            Key: key.toString(),
+            Key: this.prefix + key.toString(),
             Body: value.data,
             Metadata: value.metadata,
         };
