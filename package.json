@@ -20,6 +20,6 @@
   "devDependencies": {
     "@types/node": "^10.12.10",
     "aws-sdk": "^2.361.0",
-    "multilayer-async-cache-builder": "^1.0.3"
+    "multilayer-async-cache-builder": "^1.0.4"
   }
 }
