@@ -12,29 +12,40 @@ class MemCache {
         this.lastCleanup = Date.now();
     }
     get(key) {
-        const item = this.mem[key.toString()];
+        const hashKey = key.toString();
+        const item = this.mem[hashKey];
         if (item) {
-            return {
-                data: item.data,
-                metadata: item.metadata,
-                fromCache: "mem"
-            };
+            if (item.mtime + this.ttl > Date.now()) {
+                return {
+                    data: item.data,
+                    metadata: item.metadata,
+                    fromCache: "mem"
+                };
+            }
+            else {
+                delete this.mem[hashKey];
+                return undefined;
+            }
+        }
+        else {
+            return undefined;
         }
     }
     set(key, value) {
-        this.mem[key.toString()] = {
+        const hashKey = key.toString();
+        const now = Date.now();
+        this.mem[hashKey] = {
             data: value.data,
             metadata: value.metadata,
-            expire: Date.now() + this.ttl
+            mtime: now
         };
-        this.cleanup();
+        this.cleanup(now);
     }
-    cleanup() {
-        const now = Date.now();
+    cleanup(now) {
         if (now - this.lastCleanup > this.cleanupInterval) {
             this.lastCleanup = now;
             for (const key in this.mem)
-                if (this.mem[key].expire < now)
+                if (this.mem[key].mtime + this.ttl <= now)
                     delete this.mem[key];
         }
     }
@@ -49,34 +60,52 @@ class DiskCache {
         this.lastCleanup = Date.now();
     }
     async get(key) {
+        const hashKey = key.toString();
+        const file = path.join(this.cacheFolder, hashKey);
         try {
-            const file = path.join(this.cacheFolder, key.toString());
             const buf = await util_1.promisify(fs.readFile)(file);
             const index = buf.indexOf("\n");
-            return {
-                data: buf.slice(index + 1),
-                metadata: JSON.parse(buf.slice(0, index).toString()),
-                fromCache: "disk"
-            };
+            const header = JSON.parse(buf.slice(0, index).toString());
+            if (header.mtime + this.ttl > Date.now()) {
+                return {
+                    data: buf.slice(index + 1),
+                    metadata: header.metadata,
+                    fromCache: "disk"
+                };
+            }
+            else {
+                util_1.promisify(fs.unlink)(file).catch(console.error);
+                return undefined;
+            }
         }
         catch (err) {
             return undefined;
         }
     }
     async set(key, value) {
-        const file = path.join(this.cacheFolder, key.toString());
+        const hashKey = key.toString();
+        const file = path.join(this.cacheFolder, hashKey);
         const fd = await util_1.promisify(fs.open)(file, "w");
+        const now = Date.now();
+        const header = { metadata: value.metadata, mtime: now };
         try {
-            await util_1.promisify(fs.write)(fd, JSON.stringify(value.metadata) + "\n");
+            await util_1.promisify(fs.write)(fd, JSON.stringify(header) + "\n");
             await util_1.promisify(fs.write)(fd, value.data);
-        }
-        finally {
             await util_1.promisify(fs.close)(fd);
         }
-        this.cleanup();
+        catch (err) {
+            try {
+                await util_1.promisify(fs.close)(fd);
+                await util_1.promisify(fs.unlink)(file);
+            }
+            catch (err) {
+                console.error(err);
+            }
+            throw err;
+        }
+        this.cleanup(now);
     }
-    cleanup() {
-        const now = Date.now();
+    cleanup(now) {
         if (now - this.lastCleanup > this.cleanupInterval) {
             this.lastCleanup = now;
             child_process_1.exec(`find ${this.cacheFolder} -type f -not -newermt "${this.ttl / 1000} seconds ago" -delete`, (err, stdout, stderr) => {
@@ -107,7 +136,7 @@ class S3Cache {
             };
         }
         catch (err) {
-            if (err.code == "NoSuchKey")
+            if (err.code == "NoSuchKey" || err.code == "NotFound")
                 return undefined;
             else
                 throw err;

@@ -12,40 +12,62 @@ export interface CacheEntry {
 }
 
 
+interface MemCacheEntry {
+  data: Buffer;
+  metadata: {[key: string]: string};
+  mtime: number;
+}
+
 export class MemCache implements Cache<CacheEntry> {
-  private readonly mem: {[key: string]: {data: Buffer, metadata: {[key: string]: string}, expire: number}};
+  private readonly mem: {[key: string]: MemCacheEntry};
   private lastCleanup: number;
   constructor(private readonly ttl: number, private readonly cleanupInterval: number) {
     this.mem = {};
     this.lastCleanup = Date.now();
   }
   get(key: CacheKey): CacheEntry {
-    const item = this.mem[key.toString()];
+    const hashKey = key.toString();
+    const item = this.mem[hashKey];
     if (item) {
-      return {
-        data: item.data,
-        metadata: item.metadata,
-        fromCache: "mem"
+      if (item.mtime+this.ttl > Date.now()) {
+        return {
+          data: item.data,
+          metadata: item.metadata,
+          fromCache: "mem"
+        }
       }
+      else {
+        delete this.mem[hashKey];
+        return undefined;
+      }
+    }
+    else {
+      return undefined;
     }
   }
   set(key: CacheKey, value: CacheEntry) {
-    this.mem[key.toString()] = {
+    const hashKey = key.toString();
+    const now = Date.now();
+    this.mem[hashKey] = {
       data: value.data,
       metadata: value.metadata,
-      expire: Date.now() + this.ttl
+      mtime: now
     };
-    this.cleanup();
+    this.cleanup(now);
   }
-  private cleanup() {
-    const now = Date.now();
+  private cleanup(now: number) {
     if (now-this.lastCleanup > this.cleanupInterval) {
       this.lastCleanup = now;
-      for (const key in this.mem) if (this.mem[key].expire < now) delete this.mem[key];
+      for (const key in this.mem) if (this.mem[key].mtime+this.ttl <= now) delete this.mem[key];
     }
   }
 }
 
+
+interface DiskCacheFileHeader {
+  metadata: {[key: string]: string};
+  mtime: number;
+}
 
 export class DiskCache implements Cache<CacheEntry> {
   private lastCleanup: number;
@@ -54,14 +76,22 @@ export class DiskCache implements Cache<CacheEntry> {
     this.lastCleanup = Date.now();
   }
   async get(key: CacheKey): Promise<CacheEntry> {
+    const hashKey = key.toString();
+    const file = path.join(this.cacheFolder, hashKey);
     try {
-      const file = path.join(this.cacheFolder, key.toString());
       const buf = await promisify(fs.readFile)(file);
       const index = buf.indexOf("\n");
-      return {
-        data: buf.slice(index +1),
-        metadata: JSON.parse(buf.slice(0, index).toString()),
-        fromCache: "disk"
+      const header: DiskCacheFileHeader = JSON.parse(buf.slice(0, index).toString());
+      if (header.mtime+this.ttl > Date.now()) {
+        return {
+          data: buf.slice(index +1),
+          metadata: header.metadata,
+          fromCache: "disk"
+        }
+      }
+      else {
+        promisify(fs.unlink)(file).catch(console.error);
+        return undefined;
       }
     }
     catch (err) {
@@ -69,19 +99,29 @@ export class DiskCache implements Cache<CacheEntry> {
     }
   }
   async set(key: CacheKey, value: CacheEntry) {
-    const file = path.join(this.cacheFolder, key.toString());
+    const hashKey = key.toString();
+    const file = path.join(this.cacheFolder, hashKey);
     const fd = await promisify(fs.open)(file, "w");
+    const now = Date.now();
+    const header: DiskCacheFileHeader = {metadata: value.metadata, mtime: now};
     try {
-      await promisify(fs.write)(fd, JSON.stringify(value.metadata) + "\n");
+      await promisify(fs.write)(fd, JSON.stringify(header) + "\n");
       await promisify(fs.write)(fd, value.data);
-    }
-    finally {
       await promisify(fs.close)(fd);
     }
-    this.cleanup();
+    catch (err) {
+      try {
+        await promisify(fs.close)(fd);
+        await promisify(fs.unlink)(file);
+      }
+      catch (err) {
+        console.error(err);
+      }
+      throw err;
+    }
+    this.cleanup(now);
   }
-  private cleanup() {
-    const now = Date.now();
+  private cleanup(now: number) {
     if (now-this.lastCleanup > this.cleanupInterval) {
       this.lastCleanup = now;
       exec(`find ${this.cacheFolder} -type f -not -newermt "${this.ttl/1000} seconds ago" -delete`, (err, stdout, stderr) => {
@@ -109,7 +149,7 @@ export class S3Cache implements Cache<CacheEntry> {
       };
     }
     catch (err) {
-      if (err.code == "NoSuchKey") return undefined;
+      if (err.code == "NoSuchKey" || err.code == "NotFound") return undefined;
       else throw err;
     }
   }

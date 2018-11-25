@@ -16,7 +16,7 @@ export declare class MemCache implements Cache<CacheEntry> {
     constructor(ttl: number, cleanupInterval: number);
     get(key: CacheKey): CacheEntry;
     set(key: CacheKey, value: CacheEntry): void;
-    private cleanup();
+    private cleanup(now);
 }
 export declare class DiskCache implements Cache<CacheEntry> {
     private readonly cacheFolder;
@@ -26,7 +26,7 @@ export declare class DiskCache implements Cache<CacheEntry> {
     constructor(cacheFolder: string, ttl: number, cleanupInterval: number);
     get(key: CacheKey): Promise<CacheEntry>;
     set(key: CacheKey, value: CacheEntry): Promise<void>;
-    private cleanup();
+    private cleanup(now);
 }
 export declare class S3Cache implements Cache<CacheEntry> {
     private readonly s3;
