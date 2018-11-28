@@ -5,36 +5,30 @@ import { Cache, CacheKey } from "multilayer-async-cache-builder";
 import * as path from "path";
 import { promisify } from "util";
 
-export interface CacheEntry {
+export interface BinaryData {
   data: Buffer;
   metadata: {[key: string]: string};
-  fromCache: string;
 }
 
 
-interface MemCacheEntry {
-  data: Buffer;
-  metadata: {[key: string]: string};
+interface MemCacheEntry<T> {
+  content: T;
   mtime: number;
 }
 
-export class MemCache implements Cache<CacheEntry> {
-  private readonly mem: {[key: string]: MemCacheEntry};
+export class MemCache<T> implements Cache<T> {
+  private readonly mem: {[key: string]: MemCacheEntry<T>};
   private lastCleanup: number;
   constructor(private readonly ttl: number, private readonly cleanupInterval: number) {
     this.mem = {};
     this.lastCleanup = Date.now();
   }
-  get(key: CacheKey): CacheEntry {
+  get(key: CacheKey): T {
     const hashKey = key.toString();
     const item = this.mem[hashKey];
     if (item) {
       if (item.mtime+this.ttl > Date.now()) {
-        return {
-          data: item.data,
-          metadata: item.metadata,
-          fromCache: "mem"
-        }
+        return item.content;
       }
       else {
         delete this.mem[hashKey];
@@ -45,12 +39,11 @@ export class MemCache implements Cache<CacheEntry> {
       return undefined;
     }
   }
-  set(key: CacheKey, value: CacheEntry) {
+  set(key: CacheKey, value: T) {
     const hashKey = key.toString();
     const now = Date.now();
     this.mem[hashKey] = {
-      data: value.data,
-      metadata: value.metadata,
+      content: value,
       mtime: now
     };
     this.cleanup(now);
@@ -73,13 +66,13 @@ interface DiskCacheFileHeader {
   mtime: number;
 }
 
-export class DiskCache implements Cache<CacheEntry> {
+export class DiskCache implements Cache<BinaryData> {
   private lastCleanup: number;
   constructor(private readonly cacheFolder: string, private readonly ttl: number, private readonly cleanupInterval: number) {
     fs.statSync(cacheFolder);
     this.lastCleanup = Date.now();
   }
-  async get(key: CacheKey): Promise<CacheEntry> {
+  async get(key: CacheKey): Promise<BinaryData> {
     const hashKey = key.toString();
     const file = path.join(this.cacheFolder, hashKey);
     try {
@@ -89,8 +82,7 @@ export class DiskCache implements Cache<CacheEntry> {
       if (header.mtime+this.ttl > Date.now()) {
         return {
           data: buf.slice(index +1),
-          metadata: header.metadata,
-          fromCache: "disk"
+          metadata: header.metadata
         }
       }
       else {
@@ -102,7 +94,7 @@ export class DiskCache implements Cache<CacheEntry> {
       return undefined;
     }
   }
-  async set(key: CacheKey, value: CacheEntry) {
+  async set(key: CacheKey, value: BinaryData) {
     const hashKey = key.toString();
     const file = path.join(this.cacheFolder, hashKey);
     const fd = await promisify(fs.open)(file, "w");
@@ -141,10 +133,10 @@ export class DiskCache implements Cache<CacheEntry> {
 }
 
 
-export class S3Cache implements Cache<CacheEntry> {
+export class S3Cache implements Cache<BinaryData> {
   constructor(private readonly s3: S3, private readonly bucket: string, private readonly prefix: string = "") {
   }
-  async get(key: CacheKey): Promise<CacheEntry> {
+  async get(key: CacheKey): Promise<BinaryData> {
     const hashKey = key.toString();
     const req = {
       Bucket: this.bucket,
@@ -154,8 +146,7 @@ export class S3Cache implements Cache<CacheEntry> {
       const res = await this.s3.getObject(req).promise();
       return {
         data: <Buffer>res.Body,
-        metadata: res.Metadata,
-        fromCache: "s3"
+        metadata: res.Metadata
       };
     }
     catch (err) {
@@ -163,7 +154,7 @@ export class S3Cache implements Cache<CacheEntry> {
       else throw err;
     }
   }
-  async set(key: CacheKey, value: CacheEntry) {
+  async set(key: CacheKey, value: BinaryData) {
     const hashKey = key.toString();
     const req = {
       Bucket: this.bucket,

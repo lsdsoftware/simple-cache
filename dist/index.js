@@ -16,11 +16,7 @@ class MemCache {
         const item = this.mem[hashKey];
         if (item) {
             if (item.mtime + this.ttl > Date.now()) {
-                return {
-                    data: item.data,
-                    metadata: item.metadata,
-                    fromCache: "mem"
-                };
+                return item.content;
             }
             else {
                 delete this.mem[hashKey];
@@ -35,8 +31,7 @@ class MemCache {
         const hashKey = key.toString();
         const now = Date.now();
         this.mem[hashKey] = {
-            data: value.data,
-            metadata: value.metadata,
+            content: value,
             mtime: now
         };
         this.cleanup(now);
@@ -73,8 +68,7 @@ class DiskCache {
             if (header.mtime + this.ttl > Date.now()) {
                 return {
                     data: buf.slice(index + 1),
-                    metadata: header.metadata,
-                    fromCache: "disk"
+                    metadata: header.metadata
                 };
             }
             else {
@@ -141,8 +135,7 @@ class S3Cache {
             const res = await this.s3.getObject(req).promise();
             return {
                 data: res.Body,
-                metadata: res.Metadata,
-                fromCache: "s3"
+                metadata: res.Metadata
             };
         }
         catch (err) {
