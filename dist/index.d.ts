@@ -16,6 +16,7 @@ export declare class MemCache implements Cache<CacheEntry> {
     constructor(ttl: number, cleanupInterval: number);
     get(key: CacheKey): CacheEntry;
     set(key: CacheKey, value: CacheEntry): void;
+    invalidate(key: CacheKey): void;
     private cleanup(now);
 }
 export declare class DiskCache implements Cache<CacheEntry> {
@@ -26,6 +27,7 @@ export declare class DiskCache implements Cache<CacheEntry> {
     constructor(cacheFolder: string, ttl: number, cleanupInterval: number);
     get(key: CacheKey): Promise<CacheEntry>;
     set(key: CacheKey, value: CacheEntry): Promise<void>;
+    invalidate(key: CacheKey): Promise<void>;
     private cleanup(now);
 }
 export declare class S3Cache implements Cache<CacheEntry> {
@@ -35,4 +37,5 @@ export declare class S3Cache implements Cache<CacheEntry> {
     constructor(s3: S3, bucket: string, prefix?: string);
     get(key: CacheKey): Promise<CacheEntry>;
     set(key: CacheKey, value: CacheEntry): Promise<void>;
+    invalidate(key: CacheKey): Promise<void>;
 }

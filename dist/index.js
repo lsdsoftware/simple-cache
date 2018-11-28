@@ -41,6 +41,10 @@ class MemCache {
         };
         this.cleanup(now);
     }
+    invalidate(key) {
+        const hashKey = key.toString();
+        delete this.mem[hashKey];
+    }
     cleanup(now) {
         if (now - this.lastCleanup > this.cleanupInterval) {
             this.lastCleanup = now;
@@ -105,6 +109,11 @@ class DiskCache {
         }
         this.cleanup(now);
     }
+    async invalidate(key) {
+        const hashKey = key.toString();
+        const file = path.join(this.cacheFolder, hashKey);
+        await util_1.promisify(fs.unlink)(file);
+    }
     cleanup(now) {
         if (now - this.lastCleanup > this.cleanupInterval) {
             this.lastCleanup = now;
@@ -123,9 +132,10 @@ class S3Cache {
         this.prefix = prefix;
     }
     async get(key) {
+        const hashKey = key.toString();
         const req = {
             Bucket: this.bucket,
-            Key: this.prefix + key.toString(),
+            Key: this.prefix + hashKey,
         };
         try {
             const res = await this.s3.getObject(req).promise();
@@ -143,13 +153,22 @@ class S3Cache {
         }
     }
     async set(key, value) {
+        const hashKey = key.toString();
         const req = {
             Bucket: this.bucket,
-            Key: this.prefix + key.toString(),
+            Key: this.prefix + hashKey,
             Body: value.data,
             Metadata: value.metadata,
         };
         await this.s3.putObject(req).promise();
+    }
+    async invalidate(key) {
+        const hashKey = key.toString();
+        const req = {
+            Bucket: this.bucket,
+            Key: this.prefix + hashKey
+        };
+        await this.s3.deleteObject(req).promise();
     }
 }
 exports.S3Cache = S3Cache;

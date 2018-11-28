@@ -55,6 +55,10 @@ export class MemCache implements Cache<CacheEntry> {
     };
     this.cleanup(now);
   }
+  invalidate(key: CacheKey) {
+    const hashKey = key.toString();
+    delete this.mem[hashKey];
+  }
   private cleanup(now: number) {
     if (now-this.lastCleanup > this.cleanupInterval) {
       this.lastCleanup = now;
@@ -121,6 +125,11 @@ export class DiskCache implements Cache<CacheEntry> {
     }
     this.cleanup(now);
   }
+  async invalidate(key: CacheKey) {
+    const hashKey = key.toString();
+    const file = path.join(this.cacheFolder, hashKey);
+    await promisify(fs.unlink)(file);
+  }
   private cleanup(now: number) {
     if (now-this.lastCleanup > this.cleanupInterval) {
       this.lastCleanup = now;
@@ -136,9 +145,10 @@ export class S3Cache implements Cache<CacheEntry> {
   constructor(private readonly s3: S3, private readonly bucket: string, private readonly prefix: string = "") {
   }
   async get(key: CacheKey): Promise<CacheEntry> {
+    const hashKey = key.toString();
     const req = {
       Bucket: this.bucket,
-      Key: this.prefix + key.toString(),
+      Key: this.prefix + hashKey,
     };
     try {
       const res = await this.s3.getObject(req).promise();
@@ -154,12 +164,21 @@ export class S3Cache implements Cache<CacheEntry> {
     }
   }
   async set(key: CacheKey, value: CacheEntry) {
+    const hashKey = key.toString();
     const req = {
       Bucket: this.bucket,
-      Key: this.prefix + key.toString(),
+      Key: this.prefix + hashKey,
       Body: value.data,
       Metadata: value.metadata,
     };
     await this.s3.putObject(req).promise();
+  }
+  async invalidate(key: CacheKey) {
+    const hashKey = key.toString();
+    const req = {
+      Bucket: this.bucket,
+      Key: this.prefix + hashKey
+    };
+    await this.s3.deleteObject(req).promise();
   }
 }
