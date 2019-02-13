@@ -1,5 +1,5 @@
 # simple-cache
-Memory, disk, and S3 cache implementations with simple TTL.
+Memory, disk, and S3 cache implementations with simple TTL.  Cache keys can be any object but must have a valid `toString()`.
 
 For use with [multilayer-async-cache-builder](https://github.com/ken107/multilayer-async-cache-builder)
 

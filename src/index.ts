@@ -1,7 +1,7 @@
 import { S3 } from "aws-sdk";
 import { exec } from "child_process";
 import * as fs from "fs";
-import { Cache, CacheKey } from "multilayer-async-cache-builder";
+import { Cache } from "multilayer-async-cache-builder";
 import * as path from "path";
 import { promisify } from "util";
 
@@ -16,14 +16,14 @@ interface MemCacheEntry<T> {
   mtime: number;
 }
 
-export class MemCache<T> implements Cache<T> {
-  private readonly mem: {[key: string]: MemCacheEntry<T>};
+export class MemCache<K, V> implements Cache<K, V> {
+  private readonly mem: {[key: string]: MemCacheEntry<V>};
   private lastCleanup: number;
   constructor(private readonly ttl: number, private readonly cleanupInterval: number) {
     this.mem = {};
     this.lastCleanup = Date.now();
   }
-  get(key: CacheKey): T {
+  get(key: K): V {
     const hashKey = key.toString();
     const item = this.mem[hashKey];
     if (item) {
@@ -39,7 +39,7 @@ export class MemCache<T> implements Cache<T> {
       return undefined;
     }
   }
-  set(key: CacheKey, value: T) {
+  set(key: K, value: V) {
     const hashKey = key.toString();
     const now = Date.now();
     this.mem[hashKey] = {
@@ -48,7 +48,7 @@ export class MemCache<T> implements Cache<T> {
     };
     this.cleanup(now);
   }
-  invalidate(key: CacheKey) {
+  invalidate(key: K) {
     const hashKey = key.toString();
     delete this.mem[hashKey];
   }
@@ -66,13 +66,13 @@ interface DiskCacheFileHeader {
   mtime: number;
 }
 
-export class DiskCache implements Cache<BinaryData> {
+export class DiskCache<K> implements Cache<K, BinaryData> {
   private lastCleanup: number;
   constructor(private readonly cacheFolder: string, private readonly ttl: number, private readonly cleanupInterval: number) {
     fs.statSync(cacheFolder);
     this.lastCleanup = Date.now();
   }
-  async get(key: CacheKey): Promise<BinaryData> {
+  async get(key: K): Promise<BinaryData> {
     const hashKey = key.toString();
     const file = path.join(this.cacheFolder, hashKey);
     try {
@@ -94,7 +94,7 @@ export class DiskCache implements Cache<BinaryData> {
       return undefined;
     }
   }
-  async set(key: CacheKey, value: BinaryData) {
+  async set(key: K, value: BinaryData) {
     const hashKey = key.toString();
     const file = path.join(this.cacheFolder, hashKey);
     const fd = await promisify(fs.open)(file, "w");
@@ -117,7 +117,7 @@ export class DiskCache implements Cache<BinaryData> {
     }
     this.cleanup(now);
   }
-  async invalidate(key: CacheKey) {
+  async invalidate(key: K) {
     const hashKey = key.toString();
     const file = path.join(this.cacheFolder, hashKey);
     await promisify(fs.unlink)(file);
@@ -133,10 +133,10 @@ export class DiskCache implements Cache<BinaryData> {
 }
 
 
-export class S3Cache implements Cache<BinaryData> {
+export class S3Cache<K> implements Cache<K, BinaryData> {
   constructor(private readonly s3: S3, private readonly bucket: string, private readonly prefix: string = "") {
   }
-  async get(key: CacheKey): Promise<BinaryData> {
+  async get(key: K): Promise<BinaryData> {
     const hashKey = key.toString();
     const req = {
       Bucket: this.bucket,
@@ -154,7 +154,7 @@ export class S3Cache implements Cache<BinaryData> {
       else throw err;
     }
   }
-  async set(key: CacheKey, value: BinaryData) {
+  async set(key: K, value: BinaryData) {
     const hashKey = key.toString();
     const req = {
       Bucket: this.bucket,
@@ -164,7 +164,7 @@ export class S3Cache implements Cache<BinaryData> {
     };
     await this.s3.putObject(req).promise();
   }
-  async invalidate(key: CacheKey) {
+  async invalidate(key: K) {
     const hashKey = key.toString();
     const req = {
       Bucket: this.bucket,
