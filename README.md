@@ -22,7 +22,7 @@ import { Fetch } from "multilayer-async-cache-builder"
 import { MemCache, DiskCache, S3Cache } from "simple-cache"
 
 const s3: AWS.S3;
-const fetchItem: (id: string) => Promise<{data: Buffer, metadata: any}>;
+const fetchItem: (id: string) => Promise<{data: Buffer, metadata: any}> = //define your fetch function
 
 const getItem = new Fetch(fetchItem)
   .cache(new S3Cache(s3, "my-bucket"))
