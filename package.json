@@ -20,8 +20,8 @@
   "homepage": "https://github.com/ken107/simple-cache#readme",
   "devDependencies": {
     "@types/node": "^12.12.21",
-    "aws-sdk": "^2.361.0",
-    "multilayer-async-cache-builder": "^1.2.0",
+    "aws-sdk": "^2.593.0",
+    "multilayer-async-cache-builder": "^1.3.0",
     "typescript": "^3.7.3"
   }
 }
