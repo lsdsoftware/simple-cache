@@ -24,7 +24,7 @@ export class MemCache<K, V> implements Cache<K, V> {
     this.lastCleanup = Date.now();
   }
   get(key: K): V {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const item = this.mem[hashKey];
     if (item) {
       if (item.mtime+this.ttl > Date.now()) {
@@ -40,7 +40,7 @@ export class MemCache<K, V> implements Cache<K, V> {
     }
   }
   set(key: K, value: V) {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const now = Date.now();
     this.mem[hashKey] = {
       content: value,
@@ -49,7 +49,7 @@ export class MemCache<K, V> implements Cache<K, V> {
     this.cleanup(now);
   }
   invalidate(key: K) {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     delete this.mem[hashKey];
   }
   private cleanup(now: number) {
@@ -73,7 +73,7 @@ export class DiskCache<K> implements Cache<K, BinaryData> {
     this.lastCleanup = Date.now();
   }
   async get(key: K): Promise<BinaryData> {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const file = path.join(this.cacheFolder, hashKey);
     try {
       const buf = await promisify(fs.readFile)(file);
@@ -95,7 +95,7 @@ export class DiskCache<K> implements Cache<K, BinaryData> {
     }
   }
   async set(key: K, value: BinaryData) {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const file = path.join(this.cacheFolder, hashKey);
     const fd = await promisify(fs.open)(file, "w");
     const now = Date.now();
@@ -118,7 +118,7 @@ export class DiskCache<K> implements Cache<K, BinaryData> {
     this.cleanup(now);
   }
   async invalidate(key: K) {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const file = path.join(this.cacheFolder, hashKey);
     await promisify(fs.unlink)(file);
   }
@@ -137,7 +137,7 @@ export class S3Cache<K> implements Cache<K, BinaryData> {
   constructor(private readonly s3: S3, private readonly bucket: string, private readonly prefix: string = "") {
   }
   async get(key: K): Promise<BinaryData> {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const req = {
       Bucket: this.bucket,
       Key: this.prefix + hashKey,
@@ -155,7 +155,7 @@ export class S3Cache<K> implements Cache<K, BinaryData> {
     }
   }
   async set(key: K, value: BinaryData) {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const req = {
       Bucket: this.bucket,
       Key: this.prefix + hashKey,
@@ -165,7 +165,7 @@ export class S3Cache<K> implements Cache<K, BinaryData> {
     await this.s3.putObject(req).promise();
   }
   async invalidate(key: K) {
-    const hashKey = key.toString();
+    const hashKey = String(key);
     const req = {
       Bucket: this.bucket,
       Key: this.prefix + hashKey

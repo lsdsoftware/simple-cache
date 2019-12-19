@@ -16,7 +16,7 @@ export declare class MemCache<K, V> implements Cache<K, V> {
     get(key: K): V;
     set(key: K, value: V): void;
     invalidate(key: K): void;
-    private cleanup(now);
+    private cleanup;
 }
 export declare class DiskCache<K> implements Cache<K, BinaryData> {
     private readonly cacheFolder;
@@ -27,7 +27,7 @@ export declare class DiskCache<K> implements Cache<K, BinaryData> {
     get(key: K): Promise<BinaryData>;
     set(key: K, value: BinaryData): Promise<void>;
     invalidate(key: K): Promise<void>;
-    private cleanup(now);
+    private cleanup;
 }
 export declare class S3Cache<K> implements Cache<K, BinaryData> {
     private readonly s3;

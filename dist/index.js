@@ -12,7 +12,7 @@ class MemCache {
         this.lastCleanup = Date.now();
     }
     get(key) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const item = this.mem[hashKey];
         if (item) {
             if (item.mtime + this.ttl > Date.now()) {
@@ -28,7 +28,7 @@ class MemCache {
         }
     }
     set(key, value) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const now = Date.now();
         this.mem[hashKey] = {
             content: value,
@@ -37,7 +37,7 @@ class MemCache {
         this.cleanup(now);
     }
     invalidate(key) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         delete this.mem[hashKey];
     }
     cleanup(now) {
@@ -59,7 +59,7 @@ class DiskCache {
         this.lastCleanup = Date.now();
     }
     async get(key) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const file = path.join(this.cacheFolder, hashKey);
         try {
             const buf = await util_1.promisify(fs.readFile)(file);
@@ -81,7 +81,7 @@ class DiskCache {
         }
     }
     async set(key, value) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const file = path.join(this.cacheFolder, hashKey);
         const fd = await util_1.promisify(fs.open)(file, "w");
         const now = Date.now();
@@ -104,7 +104,7 @@ class DiskCache {
         this.cleanup(now);
     }
     async invalidate(key) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const file = path.join(this.cacheFolder, hashKey);
         await util_1.promisify(fs.unlink)(file);
     }
@@ -126,7 +126,7 @@ class S3Cache {
         this.prefix = prefix;
     }
     async get(key) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const req = {
             Bucket: this.bucket,
             Key: this.prefix + hashKey,
@@ -146,7 +146,7 @@ class S3Cache {
         }
     }
     async set(key, value) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const req = {
             Bucket: this.bucket,
             Key: this.prefix + hashKey,
@@ -156,7 +156,7 @@ class S3Cache {
         await this.s3.putObject(req).promise();
     }
     async invalidate(key) {
-        const hashKey = key.toString();
+        const hashKey = String(key);
         const req = {
             Bucket: this.bucket,
             Key: this.prefix + hashKey
