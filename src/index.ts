@@ -1,9 +1,14 @@
-import { S3 } from "aws-sdk";
 import { exec } from "child_process";
 import * as fs from "fs";
 import { Cache } from "multilayer-async-cache-builder";
 import * as path from "path";
 import { promisify } from "util";
+
+interface S3 {
+  getObject(req: {Bucket: string, Key: string}): {promise: () => Promise<{Body: Buffer, Metadata: {[key: string]: string}}>};
+  putObject(req: {Bucket: string, Key: string, Body: Buffer, Metadata: {[key: string]: string}}): {promise: () => Promise<void>};
+  deleteObject(req: {Bucket: string, Key: string}): {promise: () => Promise<void>};
+}
 
 export interface BinaryData {
   data: Buffer;
@@ -23,7 +28,7 @@ export class MemCache<K, V> implements Cache<K, V> {
     this.mem = {};
     this.lastCleanup = Date.now();
   }
-  get(key: K): V {
+  get(key: K): V|undefined {
     const hashKey = String(key);
     const item = this.mem[hashKey];
     if (item) {
@@ -72,7 +77,7 @@ export class DiskCache<K> implements Cache<K, BinaryData> {
     fs.statSync(cacheFolder);
     this.lastCleanup = Date.now();
   }
-  async get(key: K): Promise<BinaryData> {
+  async get(key: K): Promise<BinaryData|undefined> {
     const hashKey = String(key);
     const file = path.join(this.cacheFolder, hashKey);
     try {
@@ -136,7 +141,7 @@ export class DiskCache<K> implements Cache<K, BinaryData> {
 export class S3Cache<K> implements Cache<K, BinaryData> {
   constructor(private readonly s3: S3, private readonly bucket: string, private readonly prefix: string = "") {
   }
-  async get(key: K): Promise<BinaryData> {
+  async get(key: K): Promise<BinaryData|undefined> {
     const hashKey = String(key);
     const req = {
       Bucket: this.bucket,
