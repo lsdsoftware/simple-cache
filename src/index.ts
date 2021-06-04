@@ -3,16 +3,11 @@ import * as fs from "fs";
 import { Cache } from "multilayer-async-cache-builder";
 import * as path from "path";
 import { promisify } from "util";
-
-interface S3 {
-  getObject(req: {Bucket: string, Key: string}): {promise: () => Promise<{Body: Buffer, Metadata: {[key: string]: string}}>};
-  putObject(req: {Bucket: string, Key: string, Body: Buffer, Metadata: {[key: string]: string}}): {promise: () => Promise<void>};
-  deleteObject(req: {Bucket: string, Key: string}): {promise: () => Promise<void>};
-}
+import { S3 } from "aws-sdk"
 
 export interface BinaryData {
   data: Buffer;
-  metadata: {[key: string]: string};
+  metadata?: {[key: string]: string};
 }
 
 
@@ -67,7 +62,7 @@ export class MemCache<K, V> implements Cache<K, V> {
 
 
 interface DiskCacheFileHeader {
-  metadata: {[key: string]: string};
+  metadata?: {[key: string]: string};
   mtime: number;
 }
 

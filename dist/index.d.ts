@@ -1,37 +1,9 @@
 /// <reference types="node" />
 import { Cache } from "multilayer-async-cache-builder";
-interface S3 {
-    getObject(req: {
-        Bucket: string;
-        Key: string;
-    }): {
-        promise: () => Promise<{
-            Body: Buffer;
-            Metadata: {
-                [key: string]: string;
-            };
-        }>;
-    };
-    putObject(req: {
-        Bucket: string;
-        Key: string;
-        Body: Buffer;
-        Metadata: {
-            [key: string]: string;
-        };
-    }): {
-        promise: () => Promise<void>;
-    };
-    deleteObject(req: {
-        Bucket: string;
-        Key: string;
-    }): {
-        promise: () => Promise<void>;
-    };
-}
+import { S3 } from "aws-sdk";
 export interface BinaryData {
     data: Buffer;
-    metadata: {
+    metadata?: {
         [key: string]: string;
     };
 }
@@ -66,4 +38,3 @@ export declare class S3Cache<K> implements Cache<K, BinaryData> {
     set(key: K, value: BinaryData): Promise<void>;
     invalidate(key: K): Promise<void>;
 }
-export {};
