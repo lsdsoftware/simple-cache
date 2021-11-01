@@ -88,7 +88,7 @@ class DiskCache {
         const hashKey = String(key);
         const entry = this.getEntry(hashKey);
         await fsp.writeFile(entry.blobFile, value.data);
-        await fsp.writeFile(entry.metadataFile, JSON.stringify(value.metadata));
+        await fsp.writeFile(entry.metadataFile, JSON.stringify(value.metadata || {}));
         this.lastAccessed.set(hashKey, Date.now());
         return entry;
     }
