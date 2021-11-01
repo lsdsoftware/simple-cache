@@ -3,14 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.S3Cache = exports.DiskCache = exports.MemCache = void 0;
 const child_process_1 = require("child_process");
 const fs = require("fs");
+const fsp = require("fs/promises");
 const path = require("path");
-const util_1 = require("util");
 class MemCache {
     constructor(ttl, cleanupInterval) {
         this.ttl = ttl;
-        this.cleanupInterval = cleanupInterval;
         this.mem = {};
-        this.lastCleanup = Date.now();
+        this.throttledCleanup = throttle(this.cleanup.bind(this), cleanupInterval);
     }
     get(key) {
         const hashKey = String(key);
@@ -35,45 +34,48 @@ class MemCache {
             content: value,
             mtime: now
         };
-        this.cleanup(now);
+        this.throttledCleanup();
     }
     invalidate(key) {
         const hashKey = String(key);
         delete this.mem[hashKey];
     }
-    cleanup(now) {
-        if (now - this.lastCleanup > this.cleanupInterval) {
-            this.lastCleanup = now;
-            for (const key in this.mem)
-                if (this.mem[key].mtime + this.ttl <= now)
-                    delete this.mem[key];
-        }
+    cleanup() {
+        const now = Date.now();
+        for (const key in this.mem)
+            if (this.mem[key].mtime + this.ttl <= now)
+                delete this.mem[key];
     }
 }
 exports.MemCache = MemCache;
 class DiskCache {
-    constructor(cacheFolder, ttl, cleanupInterval) {
-        this.cacheFolder = cacheFolder;
-        this.ttl = ttl;
-        this.cleanupInterval = cleanupInterval;
-        fs.statSync(cacheFolder);
-        this.lastCleanup = Date.now();
+    constructor(opts) {
+        this.opts = opts;
+        fs.statSync(opts.cacheFolder);
+        this.lastAccessed = new Map();
+        this.throttledCleanup = throttle(this.cleanup.bind(this), opts.cleanupInterval);
+    }
+    getEntry(hashKey) {
+        return {
+            blobFile: path.join(this.opts.cacheFolder, hashKey + ".blob"),
+            metadataFile: path.join(this.opts.cacheFolder, hashKey + ".metadata")
+        };
     }
     async get(key) {
         const hashKey = String(key);
-        const file = path.join(this.cacheFolder, hashKey);
+        const entry = this.getEntry(hashKey);
         try {
-            const buf = await util_1.promisify(fs.readFile)(file);
-            const index = buf.indexOf("\n");
-            const header = JSON.parse(buf.slice(0, index).toString());
-            if (header.mtime + this.ttl > Date.now()) {
-                return {
-                    data: buf.slice(index + 1),
-                    metadata: header.metadata
-                };
+            const now = Date.now();
+            const stat = await fsp.stat(entry.metadataFile);
+            if (stat.mtimeMs + this.opts.ttl > now) {
+                if (this.opts.byAccessTime && now - (this.lastAccessed.get(hashKey) || 0) > (this.opts.accessTimeUpdateInterval || 60 * 1000)) {
+                    this.lastAccessed.set(hashKey, now);
+                    (0, child_process_1.execFile)("touch", ["-c", entry.metadataFile, entry.blobFile], printExecError);
+                }
+                return entry;
             }
             else {
-                util_1.promisify(fs.unlink)(file).catch(console.error);
+                fsp.unlink(entry.metadataFile).then(() => fsp.unlink(entry.blobFile)).catch(console.error);
                 return undefined;
             }
         }
@@ -82,41 +84,27 @@ class DiskCache {
         }
     }
     async set(key, value) {
+        this.throttledCleanup();
         const hashKey = String(key);
-        const file = path.join(this.cacheFolder, hashKey);
-        const fd = await util_1.promisify(fs.open)(file, "w");
-        const now = Date.now();
-        const header = { metadata: value.metadata, mtime: now };
-        try {
-            await util_1.promisify(fs.write)(fd, JSON.stringify(header) + "\n");
-            await util_1.promisify(fs.write)(fd, value.data);
-            await util_1.promisify(fs.close)(fd);
-        }
-        catch (err) {
-            try {
-                await util_1.promisify(fs.close)(fd);
-                await util_1.promisify(fs.unlink)(file);
-            }
-            catch (err) {
-                console.error(err);
-            }
-            throw err;
-        }
-        this.cleanup(now);
+        const entry = this.getEntry(hashKey);
+        await fsp.writeFile(entry.blobFile, value.data);
+        await fsp.writeFile(entry.metadataFile, JSON.stringify(value.metadata));
+        this.lastAccessed.set(hashKey, Date.now());
+        return entry;
     }
     async invalidate(key) {
         const hashKey = String(key);
-        const file = path.join(this.cacheFolder, hashKey);
-        await util_1.promisify(fs.unlink)(file);
+        const entry = this.getEntry(hashKey);
+        await fsp.unlink(entry.metadataFile);
+        await fsp.unlink(entry.blobFile);
     }
-    cleanup(now) {
-        if (now - this.lastCleanup > this.cleanupInterval) {
-            this.lastCleanup = now;
-            child_process_1.exec(`find ${this.cacheFolder} -type f -not -newermt "${this.ttl / 1000} seconds ago" -delete`, (err, stdout, stderr) => {
-                if (err || stderr)
-                    console.error(err || stderr);
-            });
-        }
+    cleanup() {
+        (0, child_process_1.execFile)("find", [
+            this.opts.cacheFolder,
+            "-type", "f",
+            "-not", "-newermt", Math.ceil(this.opts.ttl / 1000) + " seconds ago",
+            "-delete"
+        ], printExecError);
     }
 }
 exports.DiskCache = DiskCache;
@@ -166,3 +154,17 @@ class S3Cache {
     }
 }
 exports.S3Cache = S3Cache;
+function throttle(fn, interval) {
+    let last = Date.now();
+    return () => {
+        const now = Date.now();
+        if (now - last > interval) {
+            last = now;
+            fn();
+        }
+    };
+}
+function printExecError(err, stdout, stderr) {
+    if (err || stderr)
+        console.error(err || stderr);
+}

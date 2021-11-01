@@ -1,13 +1,18 @@
-import { exec } from "child_process";
+import { execFile, ExecFileException } from "child_process";
 import * as fs from "fs";
-import { Cache } from "multilayer-async-cache-builder";
+import * as fsp from "fs/promises"
+import { Cache, CacheX } from "multilayer-async-cache-builder";
 import * as path from "path";
-import { promisify } from "util";
 import { S3 } from "aws-sdk"
 
 export interface BinaryData {
   data: Buffer;
   metadata?: {[key: string]: string};
+}
+
+export interface DiskCacheEntry {
+  blobFile: string
+  metadataFile: string
 }
 
 
@@ -18,10 +23,10 @@ interface MemCacheEntry<T> {
 
 export class MemCache<K, V> implements Cache<K, V> {
   private readonly mem: {[key: string]: MemCacheEntry<V>};
-  private lastCleanup: number;
-  constructor(private readonly ttl: number, private readonly cleanupInterval: number) {
+  private readonly throttledCleanup: () => void
+  constructor(private readonly ttl: number, cleanupInterval: number) {
     this.mem = {};
-    this.lastCleanup = Date.now();
+    this.throttledCleanup = throttle(this.cleanup.bind(this), cleanupInterval)
   }
   get(key: K): V|undefined {
     const hashKey = String(key);
@@ -46,47 +51,57 @@ export class MemCache<K, V> implements Cache<K, V> {
       content: value,
       mtime: now
     };
-    this.cleanup(now);
+    this.throttledCleanup()
   }
   invalidate(key: K) {
     const hashKey = String(key);
     delete this.mem[hashKey];
   }
-  private cleanup(now: number) {
-    if (now-this.lastCleanup > this.cleanupInterval) {
-      this.lastCleanup = now;
+  private cleanup() {
+    const now = Date.now()
       for (const key in this.mem) if (this.mem[key].mtime+this.ttl <= now) delete this.mem[key];
+  }
+}
+
+
+
+interface DiskCacheOptions {
+  cacheFolder: string
+  ttl: number
+  cleanupInterval: number
+  byAccessTime?: boolean
+  accessTimeUpdateInterval?: number
+}
+
+export class DiskCache<K> implements CacheX<K, BinaryData, DiskCacheEntry> {
+  private readonly lastAccessed: Map<string, number>
+  private readonly throttledCleanup: () => void
+  constructor(private readonly opts: DiskCacheOptions) {
+    fs.statSync(opts.cacheFolder)
+    this.lastAccessed = new Map()
+    this.throttledCleanup = throttle(this.cleanup.bind(this), opts.cleanupInterval)
+  }
+  private getEntry(hashKey: string): DiskCacheEntry {
+    return {
+      blobFile: path.join(this.opts.cacheFolder, hashKey + ".blob"),
+      metadataFile: path.join(this.opts.cacheFolder, hashKey + ".metadata")
     }
   }
-}
-
-
-interface DiskCacheFileHeader {
-  metadata?: {[key: string]: string};
-  mtime: number;
-}
-
-export class DiskCache<K> implements Cache<K, BinaryData> {
-  private lastCleanup: number;
-  constructor(private readonly cacheFolder: string, private readonly ttl: number, private readonly cleanupInterval: number) {
-    fs.statSync(cacheFolder);
-    this.lastCleanup = Date.now();
-  }
-  async get(key: K): Promise<BinaryData|undefined> {
+  async get(key: K): Promise<DiskCacheEntry|undefined> {
     const hashKey = String(key);
-    const file = path.join(this.cacheFolder, hashKey);
+    const entry = this.getEntry(hashKey)
     try {
-      const buf = await promisify(fs.readFile)(file);
-      const index = buf.indexOf("\n");
-      const header: DiskCacheFileHeader = JSON.parse(buf.slice(0, index).toString());
-      if (header.mtime+this.ttl > Date.now()) {
-        return {
-          data: buf.slice(index +1),
-          metadata: header.metadata
+      const now = Date.now()
+      const stat = await fsp.stat(entry.metadataFile)
+      if (stat.mtimeMs + this.opts.ttl > now) {
+        if (this.opts.byAccessTime && now - (this.lastAccessed.get(hashKey) || 0) > (this.opts.accessTimeUpdateInterval || 60*1000)) {
+          this.lastAccessed.set(hashKey, now)
+          execFile("touch", ["-c", entry.metadataFile, entry.blobFile], printExecError)
         }
+        return entry
       }
       else {
-        promisify(fs.unlink)(file).catch(console.error);
+        fsp.unlink(entry.metadataFile).then(() => fsp.unlink(entry.blobFile)).catch(console.error)
         return undefined;
       }
     }
@@ -94,43 +109,31 @@ export class DiskCache<K> implements Cache<K, BinaryData> {
       return undefined;
     }
   }
-  async set(key: K, value: BinaryData) {
+  async set(key: K, value: BinaryData): Promise<DiskCacheEntry> {
+    this.throttledCleanup()
     const hashKey = String(key);
-    const file = path.join(this.cacheFolder, hashKey);
-    const fd = await promisify(fs.open)(file, "w");
-    const now = Date.now();
-    const header: DiskCacheFileHeader = {metadata: value.metadata, mtime: now};
-    try {
-      await promisify(fs.write)(fd, JSON.stringify(header) + "\n");
-      await promisify(fs.write)(fd, value.data);
-      await promisify(fs.close)(fd);
-    }
-    catch (err) {
-      try {
-        await promisify(fs.close)(fd);
-        await promisify(fs.unlink)(file);
-      }
-      catch (err) {
-        console.error(err);
-      }
-      throw err;
-    }
-    this.cleanup(now);
+    const entry = this.getEntry(hashKey)
+    await fsp.writeFile(entry.blobFile, value.data)
+    await fsp.writeFile(entry.metadataFile, JSON.stringify(value.metadata))
+    this.lastAccessed.set(hashKey, Date.now())
+    return entry
   }
   async invalidate(key: K) {
     const hashKey = String(key);
-    const file = path.join(this.cacheFolder, hashKey);
-    await promisify(fs.unlink)(file);
+    const entry = this.getEntry(hashKey)
+    await fsp.unlink(entry.metadataFile)
+    await fsp.unlink(entry.blobFile)
   }
-  private cleanup(now: number) {
-    if (now-this.lastCleanup > this.cleanupInterval) {
-      this.lastCleanup = now;
-      exec(`find ${this.cacheFolder} -type f -not -newermt "${this.ttl/1000} seconds ago" -delete`, (err, stdout, stderr) => {
-        if (err || stderr) console.error(err || stderr);
-      })
-    }
+  private cleanup() {
+    execFile("find", [
+      this.opts.cacheFolder,
+      "-type", "f",
+      "-not", "-newermt", Math.ceil(this.opts.ttl /1000) + " seconds ago",
+      "-delete"
+    ], printExecError)
   }
 }
+
 
 
 export class S3Cache<K> implements Cache<K, BinaryData> {
@@ -149,7 +152,7 @@ export class S3Cache<K> implements Cache<K, BinaryData> {
         metadata: res.Metadata
       };
     }
-    catch (err) {
+    catch (err: any) {
       if (err.code == "NoSuchKey" || err.code == "NotFound") return undefined;
       else throw err;
     }
@@ -172,4 +175,22 @@ export class S3Cache<K> implements Cache<K, BinaryData> {
     };
     await this.s3.deleteObject(req).promise();
   }
+}
+
+
+
+
+function throttle(fn: () => void, interval: number) {
+  let last = Date.now()
+  return () => {
+    const now = Date.now()
+    if (now-last > interval) {
+      last = now
+      fn()
+    }
+  }
+}
+
+function printExecError(err: ExecFileException|null, stdout: string, stderr: string) {
+  if (err || stderr) console.error(err || stderr)
 }
