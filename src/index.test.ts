@@ -5,6 +5,8 @@ import { promisify } from "util"
 
 const cacheFolder = "test-cache"
 
+jest.setTimeout(10*1000)
+
 beforeAll(async () => {
     await fsp.mkdir(cacheFolder)
 })
@@ -63,15 +65,15 @@ describe("by modified time", () => {
 
     test("get expired entry before cleanup", async () => {
         const entry = await cache.set("3", {data: Buffer.from("three"), metadata: {spanish: "tres"}})
-        
-        // Wait for the ttl to expire
-        await promisify(setTimeout)(1100)
+        await promisify(setTimeout)(900)
+
+        // access the entry before ttl expires (900 < 1000)
+        await expect(cache.get("3")).resolves.toEqual(entry)
+        await promisify(setTimeout)(200)
         await expectExists(entry, "three", "{\"spanish\":\"tres\"}")
 
-        // Get the expired entry
+        // access the entry after ttl expires (1100 > 1000)
         await expect(cache.get("3")).resolves.toBeUndefined()
-
-        // Wait for entry to be cleaned up
         await promisify(setTimeout)(100)
         await expectNotExists(entry)
     })
@@ -112,7 +114,7 @@ describe("by access time", () => {
         })
     })
 
-    test("access time is updated no faster than interval, entry not expired", async () => {
+    test("access time is updated no faster than interval", async () => {
         const entry = await cache.set("5", {data: Buffer.from("five"), metadata: {spanish: "cinco"}})
         const t1 = Date.now()
         await promisify(setTimeout)(900)
@@ -130,16 +132,26 @@ describe("by access time", () => {
         await expectAge(entry, Date.now() - t2)
     })
 
-    test("entry expired since last access", async () => {
+    test("access correctly prevents entry from expiring", async () => {
         const entry = await cache.set("6", {data: Buffer.from("six"), metadata: {spanish: "seis"}})
         const t1 = Date.now()
-        await promisify(setTimeout)(2100)
+        await promisify(setTimeout)(1900)
         await expectAge(entry, Date.now() - t1)
 
-        // Get the expired entry
-        await expect(cache.get("6")).resolves.toBeUndefined()
+        // access before ttl expires (1900 < 2000), verify entry not expired
+        await expect(cache.get("6")).resolves.toEqual(entry)
+        const t2 = Date.now()
+        await promisify(setTimeout)(1900)
+        await expectAge(entry, Date.now() - t2)
 
-        // Wait for entry to be cleaned up
+        // access before ttl expires (1900 < 2000), verify entry not expired
+        await expect(cache.get("6")).resolves.toEqual(entry)
+        const t3 = Date.now()
+        await promisify(setTimeout)(2100)
+        await expectAge(entry, Date.now() - t3)
+
+        // access after ttl expires (2100 > 2000), verify entry expired
+        await expect(cache.get("6")).resolves.toBeUndefined()
         await promisify(setTimeout)(100)
         await expectNotExists(entry)
     })
