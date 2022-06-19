@@ -9,8 +9,8 @@ export declare class MemCache<V> implements Cache<V> {
     private readonly throttledCleanup;
     private readonly getTtl;
     constructor({ ttl, cleanupInterval }: MemCacheOptions<V>);
-    get(hashKey: string): V | undefined;
-    set(hashKey: string, value: V): void;
+    get(hashKey: string): Promise<V | undefined>;
+    set(hashKey: string, value: V): Promise<void>;
     invalidate(hashKey: string): void;
     private cleanup;
 }

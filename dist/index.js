@@ -12,7 +12,7 @@ class MemCache {
         this.throttledCleanup = (0, common_1.throttle)(this.cleanup.bind(this), cleanupInterval);
         this.getTtl = typeof ttl === "number" ? () => ttl : ttl;
     }
-    get(hashKey) {
+    async get(hashKey) {
         const item = this.mem.get(hashKey);
         if (item) {
             if (item.mtime + this.getTtl(item.content) > Date.now()) {
@@ -27,7 +27,7 @@ class MemCache {
             return undefined;
         }
     }
-    set(hashKey, value) {
+    async set(hashKey, value) {
         const now = Date.now();
         this.mem.set(hashKey, {
             content: value,

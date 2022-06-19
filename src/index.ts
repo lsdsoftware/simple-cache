@@ -22,7 +22,7 @@ export class MemCache<V> implements Cache<V> {
     this.getTtl = typeof ttl === "number" ? () => ttl : ttl
   }
 
-  get(hashKey: string): V|undefined {
+  async get(hashKey: string): Promise<V|undefined> {
     const item = this.mem.get(hashKey)
     if (item) {
       if (item.mtime + this.getTtl(item.content) > Date.now()) {
@@ -38,7 +38,7 @@ export class MemCache<V> implements Cache<V> {
     }
   }
 
-  set(hashKey: string, value: V) {
+  async set(hashKey: string, value: V): Promise<void> {
     const now = Date.now();
     this.mem.set(hashKey, {
       content: value,
