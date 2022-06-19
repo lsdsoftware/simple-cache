@@ -1,10 +1,14 @@
 import { Cache, CacheX } from "multilayer-async-cache-builder";
 import { BinaryData, TtlSupplier } from "./common";
+interface MemCacheOptions<V> {
+    ttl: number | TtlSupplier<V>;
+    cleanupInterval: number;
+}
 export declare class MemCache<V> implements Cache<V> {
     private readonly mem;
     private readonly throttledCleanup;
     private readonly getTtl;
-    constructor(ttl: number | TtlSupplier<V>, cleanupInterval: number);
+    constructor({ ttl, cleanupInterval }: MemCacheOptions<V>);
     get(hashKey: string): V | undefined;
     set(hashKey: string, value: V): void;
     invalidate(hashKey: string): void;

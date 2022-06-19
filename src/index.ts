@@ -6,12 +6,17 @@ import * as path from "path";
 import { BinaryData, throttle, TtlSupplier } from "./common";
 
 
+interface MemCacheOptions<V> {
+  ttl: number|TtlSupplier<V>
+  cleanupInterval: number
+}
+
 export class MemCache<V> implements Cache<V> {
   private readonly mem: Map<string, {content: V, mtime: number}>
   private readonly throttledCleanup: () => void
   private readonly getTtl: TtlSupplier<V>
 
-  constructor(ttl: number|TtlSupplier<V>, cleanupInterval: number) {
+  constructor({ttl, cleanupInterval}: MemCacheOptions<V>) {
     this.mem = new Map()
     this.throttledCleanup = throttle(this.cleanup.bind(this), cleanupInterval)
     this.getTtl = typeof ttl === "number" ? () => ttl : ttl

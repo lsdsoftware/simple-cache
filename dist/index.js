@@ -7,7 +7,7 @@ const fsp = require("fs/promises");
 const path = require("path");
 const common_1 = require("./common");
 class MemCache {
-    constructor(ttl, cleanupInterval) {
+    constructor({ ttl, cleanupInterval }) {
         this.mem = new Map();
         this.throttledCleanup = (0, common_1.throttle)(this.cleanup.bind(this), cleanupInterval);
         this.getTtl = typeof ttl === "number" ? () => ttl : ttl;
