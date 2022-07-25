@@ -43,7 +43,7 @@ async function expectAge(entry: DiskCacheEntry, targetAge: number) {
 
 
 describe("by modified time", () => {
-    let cache: DiskCache<string>
+    let cache: DiskCache
 
     beforeEach(async () => {
         cache = new DiskCache({cacheFolder, ttl: 1000, cleanupInterval: 2000})
@@ -102,7 +102,7 @@ describe("by modified time", () => {
 
 
 describe("by access time", () => {
-    let cache: DiskCache<string>
+    let cache: DiskCache
 
     beforeEach(async () => {
         cache = new DiskCache({

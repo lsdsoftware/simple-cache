@@ -25,7 +25,7 @@ interface DiskCacheOptions {
     byAccessTime?: boolean;
     accessTimeUpdateInterval?: number;
 }
-export declare class DiskCache<K> implements CacheX<BinaryData, DiskCacheEntry> {
+export declare class DiskCache implements CacheX<BinaryData, DiskCacheEntry> {
     private readonly opts;
     private readonly lastAccessed;
     private readonly throttledCleanup;
@@ -33,7 +33,7 @@ export declare class DiskCache<K> implements CacheX<BinaryData, DiskCacheEntry> 
     private getEntry;
     get(hashKey: string): Promise<DiskCacheEntry | undefined>;
     set(hashKey: string, value: BinaryData): Promise<DiskCacheEntry>;
-    invalidate(key: K): Promise<void>;
+    invalidate(hashKey: string): Promise<void>;
     private cleanup;
     private printExecError;
 }

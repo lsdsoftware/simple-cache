@@ -89,8 +89,7 @@ class DiskCache {
         this.lastAccessed.set(hashKey, Date.now());
         return entry;
     }
-    async invalidate(key) {
-        const hashKey = String(key);
+    async invalidate(hashKey) {
         const entry = this.getEntry(hashKey);
         await fsp.unlink(entry.metadataFile);
         await fsp.unlink(entry.blobFile);

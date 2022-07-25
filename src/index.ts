@@ -74,7 +74,7 @@ interface DiskCacheOptions {
   accessTimeUpdateInterval?: number
 }
 
-export class DiskCache<K> implements CacheX<BinaryData, DiskCacheEntry> {
+export class DiskCache implements CacheX<BinaryData, DiskCacheEntry> {
   private readonly lastAccessed: Map<string, number>
   private readonly throttledCleanup: () => void
 
@@ -122,8 +122,7 @@ export class DiskCache<K> implements CacheX<BinaryData, DiskCacheEntry> {
     return entry
   }
 
-  async invalidate(key: K) {
-    const hashKey = String(key);
+  async invalidate(hashKey: string) {
     const entry = this.getEntry(hashKey)
     await fsp.unlink(entry.metadataFile)
     await fsp.unlink(entry.blobFile)
