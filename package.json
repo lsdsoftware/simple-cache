@@ -1,13 +1,13 @@
 {
   "name": "@lsdsoftware/simple-cache",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Memory, disk, and S3 cache implementations with simple TTL",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "jest dist"
+    "test": "node dist/index.test"
   },
   "repository": {
     "type": "git",
@@ -20,10 +20,9 @@
   },
   "homepage": "https://github.com/ken107/simple-cache#readme",
   "devDependencies": {
-    "@types/jest": "^28.1.6",
     "@types/node": "^18.6.1",
     "aws-sdk": "^2.1181.0",
-    "multilayer-async-cache-builder": "^2.0.4",
+    "multilayer-async-cache-builder": "^2.0.5",
     "typescript": "^4.7.4"
   }
 }

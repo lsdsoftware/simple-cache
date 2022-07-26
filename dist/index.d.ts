@@ -27,7 +27,6 @@ interface DiskCacheOptions {
 }
 export declare class DiskCache implements CacheX<BinaryData, DiskCacheEntry> {
     private readonly opts;
-    private readonly lastAccessed;
     private readonly throttledCleanup;
     constructor(opts: DiskCacheOptions);
     private getEntry;
