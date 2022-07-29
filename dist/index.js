@@ -140,7 +140,7 @@ class DiskCache {
     }
     cleanup() {
         (0, child_process_1.execFile)("find", [
-            this.opts.cacheFolder,
+            "-H", this.opts.cacheFolder,
             "-type", "f",
             "-not", this.opts.byAccessTime ? "-newerat" : "-newermt", Math.ceil(this.opts.ttl / 1000) + " seconds ago",
             "-delete"

@@ -178,7 +178,7 @@ export class DiskCache implements CacheX<BinaryData, DiskCacheEntry> {
 
   private cleanup() {
     execFile("find", [
-      this.opts.cacheFolder,
+      "-H", this.opts.cacheFolder,
       "-type", "f",
       "-not", this.opts.byAccessTime ? "-newerat" : "-newermt", Math.ceil(this.opts.ttl /1000) + " seconds ago",
       "-delete"
