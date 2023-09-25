@@ -5,5 +5,5 @@ export interface BinaryData {
         [key: string]: string;
     };
 }
-export declare type TtlSupplier<V> = (value: V) => number;
+export type TtlSupplier<V> = (value: V) => number;
 export declare function throttle(fn: () => void, interval: number): () => void;

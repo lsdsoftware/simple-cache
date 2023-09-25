@@ -1,4 +1,4 @@
-import { S3 } from "aws-sdk";
+import { S3 } from "@aws-sdk/client-s3";
 import { Cache } from "multilayer-async-cache-builder";
 import { BinaryData } from "./common";
 export declare class S3Cache implements Cache<BinaryData> {

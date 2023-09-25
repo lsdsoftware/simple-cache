@@ -13,9 +13,10 @@ class S3Cache {
             Key: this.prefix + hashKey,
         };
         try {
-            const res = await this.s3.getObject(req).promise();
+            const res = await this.s3.getObject(req);
+            const content = await res.Body.transformToByteArray();
             return {
-                data: res.Body,
+                data: Buffer.from(content),
                 metadata: res.Metadata
             };
         }
@@ -33,14 +34,14 @@ class S3Cache {
             Body: value.data,
             Metadata: value.metadata,
         };
-        await this.s3.putObject(req).promise();
+        await this.s3.putObject(req);
     }
     async invalidate(hashKey) {
         const req = {
             Bucket: this.bucket,
             Key: this.prefix + hashKey
         };
-        await this.s3.deleteObject(req).promise();
+        await this.s3.deleteObject(req);
     }
 }
 exports.S3Cache = S3Cache;

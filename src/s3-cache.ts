@@ -1,4 +1,4 @@
-import { S3 } from "aws-sdk";
+import { S3 } from "@aws-sdk/client-s3";
 import { Cache } from "multilayer-async-cache-builder";
 import { BinaryData } from "./common";
 
@@ -17,9 +17,10 @@ export class S3Cache implements Cache<BinaryData> {
       Key: this.prefix + hashKey,
     };
     try {
-      const res = await this.s3.getObject(req).promise();
+      const res = await this.s3.getObject(req);
+      const content = await res.Body!.transformToByteArray();
       return {
-        data: <Buffer>res.Body,
+        data: Buffer.from(content),
         metadata: res.Metadata
       };
     }
@@ -36,7 +37,7 @@ export class S3Cache implements Cache<BinaryData> {
       Body: value.data,
       Metadata: value.metadata,
     };
-    await this.s3.putObject(req).promise();
+    await this.s3.putObject(req);
   }
 
   async invalidate(hashKey: string) {
@@ -44,6 +45,6 @@ export class S3Cache implements Cache<BinaryData> {
       Bucket: this.bucket,
       Key: this.prefix + hashKey
     };
-    await this.s3.deleteObject(req).promise();
+    await this.s3.deleteObject(req);
   }
 }
