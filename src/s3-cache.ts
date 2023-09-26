@@ -25,7 +25,7 @@ export class S3Cache implements Cache<BinaryData> {
       };
     }
     catch (err: any) {
-      if (err.code == "NoSuchKey" || err.code == "NotFound") return undefined;
+      if (err.name == "NoSuchKey" || err.name == "NotFound") return undefined;
       else throw err;
     }
   }

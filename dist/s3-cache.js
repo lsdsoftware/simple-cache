@@ -21,7 +21,7 @@ class S3Cache {
             };
         }
         catch (err) {
-            if (err.code == "NoSuchKey" || err.code == "NotFound")
+            if (err.name == "NoSuchKey" || err.name == "NotFound")
                 return undefined;
             else
                 throw err;

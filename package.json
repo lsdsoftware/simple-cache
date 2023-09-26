@@ -1,6 +1,6 @@
 {
   "name": "@lsdsoftware/simple-cache",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Memory, disk, and S3 cache implementations with simple TTL",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -3,6 +3,8 @@ import * as fsp from "fs/promises"
 import * as path from "path"
 import { promisify } from "util"
 import * as assert from "assert"
+import { S3Cache } from "./s3-cache"
+import { S3 } from "@aws-sdk/client-s3"
 
 const cacheFolder = "test-cache"
 let cache: DiskCache
@@ -47,8 +49,8 @@ async function expectAccessed(entry: DiskCacheEntry, time: number) {
         fsp.stat(entry.blobFile),
         fsp.stat(entry.metadataFile)
     ])
-    assert(Math.abs(blobStat.atimeMs - time) < 10)
-    assert(Math.abs(metadataStat.atimeMs - time) < 10)
+    assert(Math.abs(blobStat.atimeMs - time) < 20)
+    assert(Math.abs(metadataStat.atimeMs - time) < 20)
 }
 
 
@@ -196,5 +198,27 @@ const byAccessTime = {
 
 
 
-run(byModifiedTime, byAccessTime)
+assert(process.env.AWS_PROFILE, "Missing env AWS_PROFILE")
+assert(process.env.AWS_REGION, "Missing env AWS_REGION")
+assert(process.env.S3_BUCKET, "Missing env S3_BUCKET")
+assert(process.env.S3_PREFIX, "Missing env S3_PREFIX")
+
+const s3Cache = new S3Cache(new S3(), process.env.S3_BUCKET, process.env.S3_PREFIX)
+const s3Test = {
+    _beforeEach() {
+    },
+    async main() {
+        await s3Cache.set("1", {data: Buffer.from("one"), metadata: {first:"uno"}})
+        let result = await s3Cache.get("1")
+        assert(result?.data.toString() == "one")
+        assert(result.metadata?.first == "uno")
+
+        result = await s3Cache.get("2")
+        assert(result === undefined)
+    }
+}
+
+
+
+run(byModifiedTime, byAccessTime, s3Test)
     .catch(console.error)

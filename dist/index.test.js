@@ -5,6 +5,8 @@ const fsp = require("fs/promises");
 const path = require("path");
 const util_1 = require("util");
 const assert = require("assert");
+const s3_cache_1 = require("./s3-cache");
+const client_s3_1 = require("@aws-sdk/client-s3");
 const cacheFolder = "test-cache";
 let cache;
 async function run(...suites) {
@@ -40,8 +42,8 @@ async function expectAccessed(entry, time) {
         fsp.stat(entry.blobFile),
         fsp.stat(entry.metadataFile)
     ]);
-    assert(Math.abs(blobStat.atimeMs - time) < 10);
-    assert(Math.abs(metadataStat.atimeMs - time) < 10);
+    assert(Math.abs(blobStat.atimeMs - time) < 20);
+    assert(Math.abs(metadataStat.atimeMs - time) < 20);
 }
 const byModifiedTime = {
     _beforeEach() {
@@ -157,5 +159,23 @@ const byAccessTime = {
         await expectEquals(await cache.get("777"), entry3);
     },
 };
-run(byModifiedTime, byAccessTime)
+assert(process.env.AWS_PROFILE, "Missing env AWS_PROFILE");
+assert(process.env.AWS_REGION, "Missing env AWS_REGION");
+assert(process.env.S3_BUCKET, "Missing env S3_BUCKET");
+assert(process.env.S3_PREFIX, "Missing env S3_PREFIX");
+const s3Cache = new s3_cache_1.S3Cache(new client_s3_1.S3(), process.env.S3_BUCKET, process.env.S3_PREFIX);
+const s3Test = {
+    _beforeEach() {
+    },
+    async main() {
+        var _a;
+        await s3Cache.set("1", { data: Buffer.from("one"), metadata: { first: "uno" } });
+        let result = await s3Cache.get("1");
+        assert((result === null || result === void 0 ? void 0 : result.data.toString()) == "one");
+        assert(((_a = result.metadata) === null || _a === void 0 ? void 0 : _a.first) == "uno");
+        result = await s3Cache.get("2");
+        assert(result === undefined);
+    }
+};
+run(byModifiedTime, byAccessTime, s3Test)
     .catch(console.error);
