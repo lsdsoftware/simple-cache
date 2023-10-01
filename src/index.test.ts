@@ -10,15 +10,14 @@ const cacheFolder = "test-cache"
 let cache: DiskCache
 
 
-async function run(...suites: {[test: string]: Function}[]) {
+async function run(suites: {[name: string]: {[test: string]: Function}}) {
     try {
         await fsp.mkdir(cacheFolder)
-        for (const suite of suites) {
-            const tests = Object.keys(suite).filter(x => !x.startsWith("_"))
-            for (const test of tests) {
-                console.log("Running", test)
+        for (const [suiteName, suite] of Object.entries(suites)) {
+            for (const [testName, test] of Object.entries(suite)) if (!testName.startsWith("_")) {
+                console.log("Running", suiteName, testName)
                 await suite._beforeEach()
-                await suite[test].call(suite)
+                await test.call(suite)
             }
         }
     }
@@ -100,7 +99,7 @@ const byModifiedTime = {
         const entry2 = await cache.set("44", {data: Buffer.from("four four"), metadata: {spanish: "cuatro cuatro"}})
 
         // Wait for cleanup to complete
-        await promisify(setTimeout)(100)
+        await promisify(setTimeout)(750)
         await expectNotExists(entry)
         await expectEquals(await cache.get("4"), undefined)
 
@@ -184,7 +183,7 @@ const byAccessTime = {
         const entry3 = await cache.set("777", {data: Buffer.from("seven seven seven"), metadata: {spanish: "siete siete siete"}})
 
         // Wait for cleanup to complete
-        await promisify(setTimeout)(100)
+        await promisify(setTimeout)(750)
         await expectNotExists(entry)
         await expectEquals(await cache.get("7"), undefined)
 
@@ -220,5 +219,5 @@ const s3Test = {
 
 
 
-run(byModifiedTime, byAccessTime, s3Test)
+run({byModifiedTime, byAccessTime, s3Test})
     .catch(console.error)

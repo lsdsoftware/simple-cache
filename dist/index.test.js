@@ -9,16 +9,16 @@ const s3_cache_1 = require("./s3-cache");
 const client_s3_1 = require("@aws-sdk/client-s3");
 const cacheFolder = "test-cache";
 let cache;
-async function run(...suites) {
+async function run(suites) {
     try {
         await fsp.mkdir(cacheFolder);
-        for (const suite of suites) {
-            const tests = Object.keys(suite).filter(x => !x.startsWith("_"));
-            for (const test of tests) {
-                console.log("Running", test);
-                await suite._beforeEach();
-                await suite[test].call(suite);
-            }
+        for (const [suiteName, suite] of Object.entries(suites)) {
+            for (const [testName, test] of Object.entries(suite))
+                if (!testName.startsWith("_")) {
+                    console.log("Running", suiteName, testName);
+                    await suite._beforeEach();
+                    await test.call(suite);
+                }
         }
     }
     finally {
@@ -81,7 +81,7 @@ const byModifiedTime = {
         // Trigger cleanup
         const entry2 = await cache.set("44", { data: Buffer.from("four four"), metadata: { spanish: "cuatro cuatro" } });
         // Wait for cleanup to complete
-        await (0, util_1.promisify)(setTimeout)(100);
+        await (0, util_1.promisify)(setTimeout)(750);
         await expectNotExists(entry);
         await expectEquals(await cache.get("4"), undefined);
         // Check that the new entry is still there
@@ -149,7 +149,7 @@ const byAccessTime = {
         // Trigger cleanup
         const entry3 = await cache.set("777", { data: Buffer.from("seven seven seven"), metadata: { spanish: "siete siete siete" } });
         // Wait for cleanup to complete
-        await (0, util_1.promisify)(setTimeout)(100);
+        await (0, util_1.promisify)(setTimeout)(750);
         await expectNotExists(entry);
         await expectEquals(await cache.get("7"), undefined);
         // Check that the other entries are still there
@@ -177,5 +177,5 @@ const s3Test = {
         assert(result === undefined);
     }
 };
-run(byModifiedTime, byAccessTime, s3Test)
+run({ byModifiedTime, byAccessTime, s3Test })
     .catch(console.error);
