@@ -5,7 +5,7 @@ For use with [multilayer-async-cache-builder](https://github.com/ken107/multilay
 
 ## Install
 ```
-npm i ssh://github.com/ken107/simple-cache
+npm i @lsdsoftware/simple-cache
 ```
 
 ## Example
@@ -19,13 +19,12 @@ Layer | Type   | Info
 
 ```typescript
 import { Fetch } from "multilayer-async-cache-builder"
-import { MemCache, DiskCache, S3Cache } from "simple-cache"
+import { MemCache, DiskCache } from "@lsdsoftware/simple-cache"
 
 const s3: AWS.S3;
-const fetchItem: (id: string) => Promise<{data: Buffer, metadata: any}> = //define your fetch function
+const fetchItem: (id: string) => Promise<{data: Buffer, metadata: any}>; //define your fetch function
 
 const getItem = new Fetch(fetchItem)
-  .cache(new S3Cache(s3, "my-bucket"))
   .cache(new DiskCache("path/to/cache/folder", ms("1 hour"), ms("15 minutes")))
   .cache(new MemCache(ms("1 minute"), ms("1 minute")))
   .dedupe()
