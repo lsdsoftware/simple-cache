@@ -20,8 +20,8 @@
   },
   "homepage": "https://github.com/ken107/simple-cache#readme",
   "devDependencies": {
-    "@types/node": "^20.6.5",
-    "multilayer-async-cache-builder": "^2.0.5",
+    "@types/node": "^20.8.6",
+    "multilayer-async-cache-builder": "^3.0.0",
     "typescript": "^5.2.2"
   }
 }
