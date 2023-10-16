@@ -9,20 +9,19 @@ npm i @lsdsoftware/simple-cache
 ```
 
 ## Example
-Create a 3-layer cache:
+Create a 2-layer cache:
 
 Layer | Type   | Info
 ------|--------|---------------------------------------------
 1     | Memory | ttl: 60 seconds, cleanupInterval: 60 seconds
 2     | Disk   | ttl: 1 hour, cleanupInterval: 15 minutes
-3     | S3     | ttl: (use bucket lifecycle rules)
 
 ```typescript
 import { Fetch } from "multilayer-async-cache-builder"
 import { MemCache, DiskCache } from "@lsdsoftware/simple-cache"
 
-const s3: AWS.S3;
-const fetchItem: (id: string) => Promise<{data: Buffer, metadata: any}>; //define your fetch function
+//define your fetch function
+const fetchItem: (id: string) => Promise<{data: Buffer, metadata: any}>
 
 const getItem = new Fetch(fetchItem)
   .cache(new DiskCache("path/to/cache/folder", ms("1 hour"), ms("15 minutes")))
